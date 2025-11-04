@@ -5,7 +5,7 @@ pipeline {
     REPO_URL    = 'https://github.com/oslabs-beta/cicdbot.git'
     TARGET_HOST = 'ec2-user@98.94.9.136'
     APP_DIR     = '/opt/myapp'
-    SSH_CRED_ID = 'f0ee1dfb-a6f1-4698-92c7-4a4dcabfe943'
+    SSH_CRED_ID = 'ff5b3854-5486-4b4e-bb78-2735013350ba'
   }
 
   stages {
