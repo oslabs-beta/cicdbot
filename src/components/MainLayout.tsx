@@ -1,34 +1,64 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../state/AuthContext";
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { role, setRole, username } = useAuth();
+  const location = useLocation();
+  const testSendActive =
+    location.pathname.startsWith("/test-send") ||
+    /^\/templates\/[^/]+\/test(?:\/|$)/.test(location.pathname);
 
   return (
     <div className="app-root">
       <aside className="sidebar">
         <div className="sidebar-logo">MsgCenter</div>
         <nav className="sidebar-nav">
-          <NavLink className="nav-item" to="/templates">
+          <NavLink
+            className={({ isActive }) =>
+              "nav-item" + (isActive ? " active" : "")
+            }
+            to="/templates"
+            end
+          >
             Templates
           </NavLink>
-          <NavLink className="nav-item" to="/templates/new">
+          <NavLink
+            className={({ isActive }) =>
+              "nav-item" + (isActive ? " active" : "")
+            }
+            to="/templates/new"
+          >
             Create Template
           </NavLink>
           {role === "MARKETER" && (
-            <NavLink className="nav-item" to="/test-send">
+            <NavLink
+              className={({ isActive }) =>
+                "nav-item" + (isActive || testSendActive ? " active" : "")
+              }
+              to="/test-send"
+            >
               Test Send
             </NavLink>
           )}
           {role === "MANAGER" && (
-            <NavLink className="nav-item" to="/approve">
+            <NavLink
+              className={({ isActive }) =>
+                "nav-item" + (isActive ? " active" : "")
+              }
+              to="/approve"
+            >
               Approve Templates
             </NavLink>
           )}
-          <NavLink className="nav-item" to="/records">
+          <NavLink
+            className={({ isActive }) =>
+              "nav-item" + (isActive ? " active" : "")
+            }
+            to="/records"
+          >
             Message Records
           </NavLink>
         </nav>

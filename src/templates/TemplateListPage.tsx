@@ -1,35 +1,44 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchTemplates } from "../api/client";
+import { fetchTemplateById } from "../api/client";
 import { Template } from "../types";
 import { ChannelTag, ErrorText, LoadingSpinner, StatusBadge } from "../components/ui";
 import { useAuth } from "../state/AuthContext";
 
 export const TemplateListPage: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<number | undefined>();
-  const [channel, setChannel] = useState<number | undefined>();
+  const [templateIdInput, setTemplateIdInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const pageSize = 10;
   const { role } = useAuth();
 
-  useEffect(() => {
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTemplateId = templateIdInput.trim();
+    if (!trimmedTemplateId) {
+      setError("Template ID is required.");
+      setTemplates([]);
+      return;
+    }
     setLoading(true);
     setError("");
-    fetchTemplates({ keyword, status, channel, page, pageSize })
-      .then((res) => {
-        setTemplates(res.list);
-        setTotal(res.total);
-      })
-      .catch((e) => setError(e.message || "Failed to load templates"))
-      .finally(() => setLoading(false));
-  }, [keyword, status, channel, page]);
+    try {
+      const tpl = await fetchTemplateById(trimmedTemplateId);
+      setTemplates([tpl]);
+      setTemplateIdInput(trimmedTemplateId);
+    } catch (err: any) {
+      setTemplates([]);
+      setError(err.message || "Failed to load template");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const handleReset = () => {
+    setTemplateIdInput("");
+    setTemplates([]);
+    setError("");
+  };
 
   return (
     <div className="card">
@@ -42,62 +51,28 @@ export const TemplateListPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="filters">
+      <form className="filters" onSubmit={handleSearch}>
         <div>
-          <label className="sc-only" htmlFor="keyword-search">
-            Search by name or template ID
+          <label className="sc-only" htmlFor="template-id-search">
+            Search by template ID
           </label>
           <input
-            id="keyword-search"
+            id="template-id-search"
             className="input"
-            placeholder="Search by name or template id..."
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setPage(1);
-            }}
+            placeholder="Search by template ID..."
+            value={templateIdInput}
+            onChange={(e) => setTemplateIdInput(e.target.value)}
           />
         </div>
-        <div>
-          <label className="sc-only" htmlFor="status-filter">
-            Filter by status
-          </label>
-          <select
-            id="status-filter"
-            className="select"
-            value={status ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              setStatus(v ? Number(v) : undefined);
-              setPage(1);
-            }}
-          >
-            <option value="">All status</option>
-            <option value="1">Pending</option>
-            <option value="2">Approved</option>
-            <option value="3">Rejected</option>
-          </select>
+        <div className="filters-actions">
+          <button type="submit" className="btn-primary">
+            Search
+          </button>
+          <button type="button" className="btn-ghost" onClick={handleReset}>
+            Reset
+          </button>
         </div>
-        <div>
-          <label className="sc-only" htmlFor="channel-filter">
-            Filter by channel
-          </label>
-          <select
-            id="channel-filter"
-            className="select"
-            value={channel ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              setChannel(v ? Number(v) : undefined);
-              setPage(1);
-            }}
-          >
-            <option value="">All channels</option>
-            <option value="1">Email</option>
-            <option value="2">SMS</option>
-          </select>
-        </div>
-      </div>
+      </form>
 
       {loading && <LoadingSpinner />}
       <ErrorText error={error} />
@@ -159,26 +134,6 @@ export const TemplateListPage: React.FC = () => {
               ))}
             </tbody>
           </table>
-
-          <div className="pagination">
-            <button
-              className="btn-ghost-xs"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              « Prev
-            </button>
-            <span>
-              Page {page} / {totalPages}
-            </span>
-            <button
-              className="btn-ghost-xs"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next »
-            </button>
-          </div>
         </>
       )}
     </div>

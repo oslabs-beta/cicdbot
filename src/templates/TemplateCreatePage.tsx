@@ -2,6 +2,7 @@ import React, { useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createTemplate } from "../api/client";
 import { ErrorText } from "../components/ui";
+import { useAuth } from "../state/AuthContext";
 
 export const TemplateCreatePage: React.FC = () => {
   const [name, setName] = useState("");
@@ -13,6 +14,7 @@ export const TemplateCreatePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { username } = useAuth();
   const nameId = useId();
   const signNameId = useId();
   const sourceIdFieldId = useId();
@@ -20,22 +22,49 @@ export const TemplateCreatePage: React.FC = () => {
   const subjectId = useId();
   const contentId = useId();
 
+  const generateTraceId = () => {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return crypto.randomUUID();
+    }
+    return `trace-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !subject || !content) {
-      setError("Name, subject and content are required.");
+    const trimmedName = name.trim();
+    const trimmedSignName = signName.trim();
+    const trimmedSourceId = sourceId.trim();
+    const trimmedSubject = subject.trim();
+    const trimmedContent = content.trim();
+    if (
+      !trimmedName ||
+      !trimmedSourceId ||
+      !trimmedSubject ||
+      !trimmedContent
+    ) {
+      setError("Name, source ID, subject and content are required.");
       return;
     }
+    setName(trimmedName);
+    setSignName(trimmedSignName);
+    setSourceId(trimmedSourceId);
+    setSubject(trimmedSubject);
+    setContent(trimmedContent);
     setError("");
     setSaving(true);
     try {
       const tpl = await createTemplate({
-        name,
-        sign_name: signName,
-        source_id: sourceId || "default",
+        name: trimmedName,
+        signName: trimmedSignName ? trimmedSignName : undefined,
+        sourceId: trimmedSourceId,
         channel,
-        subject,
-        content,
+        subject: trimmedSubject,
+        content: trimmedContent,
+        traceId: generateTraceId(),
+        userId: username || "77",
       });
       navigate(`/templates/${tpl.template_id}`);
     } catch (e: any) {
@@ -61,12 +90,13 @@ export const TemplateCreatePage: React.FC = () => {
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Marketing campaign template"
+            required
+            placeholder="Order Notification"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor={signNameId}>Sign Name</label>
+          <label htmlFor={signNameId}>Sign Name (Optional)</label>
           <input
             id={signNameId}
             className="input"
@@ -77,13 +107,14 @@ export const TemplateCreatePage: React.FC = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor={sourceIdFieldId}>Source ID</label>
+          <label htmlFor={sourceIdFieldId}>Source ID *</label>
           <input
             id={sourceIdFieldId}
             className="input"
             value={sourceId}
             onChange={(e) => setSourceId(e.target.value)}
-            placeholder="Business source id"
+            required
+            placeholder="wba867d3-1b3b-413f-9e16-2859730fabsa"
           />
         </div>
 
@@ -107,7 +138,8 @@ export const TemplateCreatePage: React.FC = () => {
             className="input"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Subject line"
+            required
+            placeholder="Order Shipped"
           />
         </div>
 
@@ -119,7 +151,8 @@ export const TemplateCreatePage: React.FC = () => {
             rows={10}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Template content, use placeholders like {code}"
+            required
+            placeholder="Dear ${user_name}, your order ${order_id} has been shipped."
           />
         </div>
 

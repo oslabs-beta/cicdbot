@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   approveTemplate,
   deleteTemplate,
-  fetchTemplates,
+  fetchPendingTemplates,
 } from "../api/client";
 import { Template } from "../types";
 import {
@@ -14,78 +15,58 @@ import {
 
 export const ApprovePage: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [operating, setOperating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const loadPending = () => {
+  const loadPendingTemplates = useCallback(async () => {
     setLoading(true);
     setError("");
-    fetchTemplates({ status: 1, page: 1, pageSize: 200 })
-      .then((res) => setTemplates(res.list))
-      .catch((e) => setError(e.message || "Failed to load templates"))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadPending();
+    try {
+      const list = await fetchPendingTemplates();
+      // Filter any templates that may have been updated to non-pending status
+      setTemplates(list.filter((tpl) => tpl.status === 1));
+    } catch (err: any) {
+      setTemplates([]);
+      setError(err.message || "Failed to load pending templates");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const toggleSelect = (tplId: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(tplId) ? prev.filter((id) => id !== tplId) : [...prev, tplId]
-    );
-  };
+  useEffect(() => {
+    void loadPendingTemplates();
+  }, [loadPendingTemplates]);
 
-  const handleApproveOne = async (tplId: string) => {
+  const handleApprove = async (templateId: string) => {
     if (!window.confirm("Approve this template?")) return;
-    setOperating(true);
+    setProcessingId(templateId);
     setError("");
     try {
-      await approveTemplate(tplId);
-      loadPending();
+      await approveTemplate(templateId);
+      setTemplates((prev) =>
+        prev.filter((tpl) => tpl.template_id !== templateId)
+      );
     } catch (e: any) {
       setError(e.message || "Approve failed");
     } finally {
-      setOperating(false);
+      setProcessingId(null);
     }
   };
 
-  const handleDeleteOne = async (tplId: string) => {
+  const handleDelete = async (templateId: string) => {
     if (!window.confirm("Delete this template?")) return;
-    setOperating(true);
+    setProcessingId(templateId);
     setError("");
     try {
-      await deleteTemplate(tplId);
-      loadPending();
+      await deleteTemplate(templateId);
+      setTemplates((prev) =>
+        prev.filter((tpl) => tpl.template_id !== templateId)
+      );
     } catch (e: any) {
       setError(e.message || "Delete failed");
     } finally {
-      setOperating(false);
-    }
-  };
-
-  const handleApproveSelected = async () => {
-    if (selectedIds.length === 0) return;
-    if (
-      !window.confirm(
-        `Approve ${selectedIds.length} selected templates at once?`
-      )
-    )
-      return;
-    setOperating(true);
-    setError("");
-    try {
-      for (const id of selectedIds) {
-        await approveTemplate(id);
-      }
-      setSelectedIds([]);
-      loadPending();
-    } catch (e: any) {
-      setError(e.message || "Batch approve failed");
-    } finally {
-      setOperating(false);
+      setProcessingId(null);
     }
   };
 
@@ -93,106 +74,81 @@ export const ApprovePage: React.FC = () => {
     <div className="card">
       <div className="card-header">
         <h2>Approval Center</h2>
+        <div className="actions">
+          <button
+            className="btn-ghost"
+            onClick={() => void loadPendingTemplates()}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {loading && <LoadingSpinner />}
       <ErrorText error={error} />
 
-      {!loading && templates.length === 0 && (
-        <div className="empty-state">No pending templates.</div>
+      {!loading && templates.length === 0 && !error && (
+        <div className="empty-state">
+          No pending templates awaiting approval.
+        </div>
       )}
 
       {!loading && templates.length > 0 && (
-        <>
-          <div className="batch-bar">
-            <span>Pending templates: {templates.length}</span>
-            <button
-              className="btn-success"
-              disabled={operating || selectedIds.length === 0}
-              onClick={handleApproveSelected}
-            >
-              Approve Selected ({selectedIds.length})
-            </button>
-          </div>
-
-          <table className="neon-table">
-            <thead>
-              <tr>
-                <th>
-                  <label className="sc-only" htmlFor="select-all-checkbox">
-                        Select all templates
-                  </label>
-                  <input
-                    id="select-all-checkbox"
-                    type="checkbox"
-                    checked={
-                      selectedIds.length > 0 &&
-                      selectedIds.length === templates.length
-                    }
-                    onChange={(e) =>
-                      e.target.checked
-                        ? setSelectedIds(templates.map((t) => t.template_id))
-                        : setSelectedIds([])
-                    }
-                  />
-                </th>
-                <th>Template ID</th>
-                <th>Name</th>
-                <th>Channel</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((tpl) => (
-                <tr key={tpl.id}>
-                  <td>
-                    <label
-                      className="sc-only"
-                      htmlFor={`select-template-${tpl.template_id}`}
+        <table className="neon-table">
+          <thead>
+            <tr>
+              <th>Template ID</th>
+              <th>Name</th>
+              <th>Source ID</th>
+              <th>Channel</th>
+              <th>Status</th>
+              <th>Created At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {templates.map((template) => (
+              <tr key={template.template_id}>
+                <td>
+                  <Link className="link" to={`/templates/${template.template_id}`}>
+                    {template.template_id}
+                  </Link>
+                </td>
+                <td>{template.name}</td>
+                <td>{template.source_id}</td>
+                <td>
+                  <ChannelTag channel={template.channel} />
+                </td>
+                <td>
+                  <StatusBadge status={template.status} />
+                </td>
+                <td>{template.create_time}</td>
+                <td>
+                  <div className="table-actions">
+                    <button
+                      className="btn-success-xs"
+                      disabled={
+                        processingId === template.template_id ||
+                        template.status !== 1
+                      }
+                      onClick={() => void handleApprove(template.template_id)}
                     >
-                      Select template {tpl.name || tpl.template_id}
-                    </label>
-                    <input
-                      id={`select-template-${tpl.template_id}`}
-                      type="checkbox"
-                      checked={selectedIds.includes(tpl.template_id)}
-                      onChange={() => toggleSelect(tpl.template_id)}
-                    />
-                  </td>
-                  <td>{tpl.template_id}</td>
-                  <td>{tpl.name}</td>
-                  <td>
-                    <ChannelTag channel={tpl.channel} />
-                  </td>
-                  <td>
-                    <StatusBadge status={tpl.status} />
-                  </td>
-                  <td>{tpl.create_time}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        className="btn-success-xs"
-                        disabled={operating}
-                        onClick={() => handleApproveOne(tpl.template_id)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="btn-danger-xs"
-                        disabled={operating}
-                        onClick={() => handleDeleteOne(tpl.template_id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+                      Approve
+                    </button>
+                    <button
+                      className="btn-danger-xs"
+                      disabled={processingId === template.template_id}
+                      onClick={() => void handleDelete(template.template_id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
