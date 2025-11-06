@@ -60,23 +60,23 @@ pipeline {
               npm ci || npm install
               npm run build
 
-              echo "==== Step 4: Kill all Node.js/PM2 processes (ignore errors) ===="
-              set +e
-              sudo pkill -f "node"  2>/dev/null || true
-              sudo pkill -f "pm2"   2>/dev/null || true
-              set -e
+              echo "==== Check build output directory ===="
+              if [ ! -d "dist" ]; then
+                echo "ERROR: dist directory not found after build. Abort deployment."
+                exit 1
+              fi
 
-              echo "==== Step 5: Deploy built files to Nginx ===="
+              echo "==== Step 4: Deploy built files to Nginx ===="
               sudo rm -rf ${NGINX_WEB_DIR}/*
               sudo cp -r ${APP_DIR}/dist/* ${NGINX_WEB_DIR}/
 
-              echo "==== Step 6: Adjust permissions ===="
+              echo "==== Step 5: Adjust permissions ===="
               sudo chown -R nginx:nginx ${NGINX_WEB_DIR}
 
-              echo "==== Step 7: Restart Nginx ===="
+              echo "==== Step 6: Restart Nginx ===="
               sudo systemctl restart nginx
 
-              echo "==== ✅ Deployment complete! ===="
+              echo "==== ✅ Deployment complete! Visit: https://ilessai.com ===="
             '
           """
         }
