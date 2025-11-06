@@ -60,9 +60,11 @@ pipeline {
               npm ci || npm install
               npm run build
 
-              echo "==== Step 4: Kill all Node.js/PM2 processes ===="
-              pkill -f "node" || true
-              pkill -f "pm2" || true
+              echo "==== Step 4: Kill all Node.js/PM2 processes (ignore errors) ===="
+              set +e
+              sudo pkill -f "node"  2>/dev/null || true
+              sudo pkill -f "pm2"   2>/dev/null || true
+              set -e
 
               echo "==== Step 5: Deploy built files to Nginx ===="
               sudo rm -rf ${NGINX_WEB_DIR}/*
