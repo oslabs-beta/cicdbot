@@ -40,21 +40,13 @@ pipeline {
                 sudo systemctl start nginx
               fi
 
-              echo "==== Step 1: Prepare app dir ===="
-              if [ ! -d "${APP_DIR}" ]; then
-                sudo mkdir -p ${APP_DIR}
-                sudo chown \$(whoami):\$(whoami) ${APP_DIR}
-              fi
+              echo "==== Step 1: Clean & prepare app dir ===="
+              sudo rm -rf ${APP_DIR}
+              sudo mkdir -p ${APP_DIR}
+              sudo chown ${'$'}(whoami):${'$'}(whoami) ${APP_DIR}
 
               echo "==== Step 2: Clone fresh repo ===="
-              # 每次都重新拉一份干净的代码
-              sudo rm -rf /opt/myapp
-              sudo mkdir -p /opt/myapp
-              sudo chown $(whoami):$(whoami) /opt/myapp
-
-              git clone https://github.com/oslabs-beta/cicdbot.git /opt/myapp
-              cd /opt/myapp
-
+              git clone ${REPO_URL} ${APP_DIR}
               cd ${APP_DIR}
 
               echo "==== Step 3: Install deps and build ===="
@@ -67,17 +59,20 @@ pipeline {
                 exit 1
               fi
 
-              echo "==== Step 4: Deploy built files to Nginx ===="
+              echo "==== Step 4: Ensure Nginx web dir exists ===="
+              sudo mkdir -p ${NGINX_WEB_DIR}
+
+              echo "==== Step 5: Deploy built files to Nginx ===="
               sudo rm -rf ${NGINX_WEB_DIR}/*
               sudo cp -r ${APP_DIR}/dist/* ${NGINX_WEB_DIR}/
 
-              echo "==== Step 5: Adjust permissions ===="
+              echo "==== Step 6: Adjust permissions ===="
               sudo chown -R nginx:nginx ${NGINX_WEB_DIR}
 
-              echo "==== Step 6: Restart Nginx ===="
+              echo "==== Step 7: Restart Nginx ===="
               sudo systemctl restart nginx
 
-              echo "==== ✅ Deployment complete! Visit: https://ilessai.com ===="
+              echo "==== ✅ Deployment complete! Visit: https://msg.ilessai.com ===="
             '
           """
         }
