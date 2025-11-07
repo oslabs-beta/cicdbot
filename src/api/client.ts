@@ -34,6 +34,14 @@ const buildHeaders = (
 const sanitizeResponseText = (text: string): string =>
   text.replace(/^\uFEFF/, "").trim();
 
+const stripNonJsonPrefix = (text: string): string => {
+  const firstBrace = text.search(/[{[]/);
+  if (firstBrace > 0) {
+    return text.slice(firstBrace);
+  }
+  return text;
+};
+
 function isMsgResponse<T>(value: unknown): value is MsgApiResponse<T> {
   return (
     !!value &&
@@ -53,10 +61,21 @@ async function handleResponse<T>(res: Response): Promise<T> {
     return undefined as T;
   }
 
-  let json: unknown;
-  try {
-    json = JSON.parse(cleanedText);
-  } catch (err) {
+  const tryParseJson = (textToParse: string): unknown => {
+    try {
+      return JSON.parse(textToParse);
+    } catch {
+      return undefined;
+    }
+  };
+
+  let json: unknown = tryParseJson(cleanedText);
+  const withoutPrefix = stripNonJsonPrefix(cleanedText);
+  if (json === undefined && cleanedText !== withoutPrefix) {
+    json = tryParseJson(withoutPrefix);
+  }
+
+  if (json === undefined) {
     const preview = cleanedText.slice(0, 140);
     throw new Error(
       preview
