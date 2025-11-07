@@ -1,6 +1,6 @@
 import { MsgRecord, PagedResult, Template } from "../types";
 
-const API_BASE = "http://localhost:8082";
+const API_BASE = "https://msg.ilessai.com/api";
 const DEFAULT_TRACE_ID = "mytrace123";
 const DEFAULT_USER_ID = "77";
 
