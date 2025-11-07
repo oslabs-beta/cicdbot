@@ -46,13 +46,14 @@ pipeline {
                 sudo chown \$(whoami):\$(whoami) ${APP_DIR}
               fi
 
-              echo "==== Step 2: Clone or update repo ===="
-              if [ ! -d "${APP_DIR}/.git" ]; then
-                git clone ${REPO_URL} ${APP_DIR}
-              else
-                cd ${APP_DIR}
-                git pull
-              fi
+              echo "==== Step 2: Clone fresh repo ===="
+              # 每次都重新拉一份干净的代码
+              sudo rm -rf /opt/myapp
+              sudo mkdir -p /opt/myapp
+              sudo chown $(whoami):$(whoami) /opt/myapp
+
+              git clone https://github.com/oslabs-beta/cicdbot.git /opt/myapp
+              cd /opt/myapp
 
               cd ${APP_DIR}
 
