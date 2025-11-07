@@ -31,6 +31,9 @@ const buildHeaders = (
   };
 };
 
+const sanitizeResponseText = (text: string): string =>
+  text.replace(/^\uFEFF/, "").trim();
+
 function isMsgResponse<T>(value: unknown): value is MsgApiResponse<T> {
   return (
     !!value &&
@@ -45,15 +48,21 @@ async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     throw new Error(text || `HTTP error ${res.status}`);
   }
-  if (!text) {
+  const cleanedText = sanitizeResponseText(text);
+  if (!cleanedText) {
     return undefined as T;
   }
 
   let json: unknown;
   try {
-    json = JSON.parse(text);
+    json = JSON.parse(cleanedText);
   } catch (err) {
-    throw new Error("Failed to parse server response.");
+    const preview = cleanedText.slice(0, 140);
+    throw new Error(
+      preview
+        ? `Failed to parse server response: ${preview}`
+        : "Failed to parse server response."
+    );
   }
 
   if (isMsgResponse<T>(json)) {
