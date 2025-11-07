@@ -5,7 +5,7 @@ pipeline {
     REPO_URL      = 'https://github.com/oslabs-beta/cicdbot.git'
     TARGET_HOST   = 'ec2-user@98.94.9.136'
     APP_DIR       = '/opt/myapp'
-    NGINX_WEB_DIR = '/usr/share/nginx/html'
+    NGINX_WEB_DIR = '/var/www/msgcenter-frontend/dist'
     SSH_CRED_ID   = 'ff5b3854-5486-4b4e-bb78-2735013350ba'
   }
 
